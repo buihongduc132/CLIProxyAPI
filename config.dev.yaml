@@ -1,0 +1,21 @@
+port: 18317
+
+remote-management:
+  allow-remote: false
+  secret-key: ""
+  disable-control-panel: true
+
+auth-dir: "~/.cli-proxy-api-dev"
+
+api-keys:
+  - "dev-test-key"
+
+debug: true
+logging-to-file: false
+usage-statistics-enabled: false
+request-retry: 2
+max-retry-interval: 10
+quota-exceeded:
+  switch-project: false
+  switch-preview-model: false
+ws-auth: false

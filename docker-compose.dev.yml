@@ -1,0 +1,48 @@
+services:
+  cli-proxy-api-dev:
+    image: ${CLI_PROXY_IMAGE:-eceasy/cli-proxy-api:latest}
+    pull_policy: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${VERSION:-dev}
+        COMMIT: ${COMMIT:-none}
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+    container_name: cli-proxy-api-dev
+    environment:
+      DEPLOY: dev
+    ports:
+      - "18317:18317"
+      - "18085:8085"
+      - "11455:1455"
+    volumes:
+      - ./config.dev.yaml:/CLIProxyAPI/config.yaml:ro
+      - ./auths-dev:/root/.cli-proxy-api
+      - ./logs-dev:/CLIProxyAPI/logs
+    restart: unless-stopped
+
+  # Optional: reuse live auth directory (disabled by default)
+  cli-proxy-api-dev-shared:
+    image: ${CLI_PROXY_IMAGE:-eceasy/cli-proxy-api:latest}
+    pull_policy: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${VERSION:-dev}
+        COMMIT: ${COMMIT:-none}
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+    container_name: cli-proxy-api-dev-shared
+    environment:
+      DEPLOY: dev
+    ports:
+      - "19317:18317"
+      - "19085:8085"
+      - "12455:1455"
+    volumes:
+      - ./config.dev.yaml:/CLIProxyAPI/config.yaml:ro
+      - ./auths:/root/.cli-proxy-api
+      - ./logs-dev-shared:/CLIProxyAPI/logs
+    restart: unless-stopped
+    profiles: [shared-auth]
