@@ -2,6 +2,7 @@ services:
   cli-proxy-api-dev:
     image: ${CLI_PROXY_IMAGE:-eceasy/cli-proxy-api:latest}
     pull_policy: always
+    user: "${UID:-1000}:${GID:-1000}"
     build:
       context: .
       dockerfile: Dockerfile
@@ -26,6 +27,7 @@ services:
   cli-proxy-api-dev-shared:
     image: ${CLI_PROXY_IMAGE:-eceasy/cli-proxy-api:latest}
     pull_policy: always
+    user: "${UID:-1000}:${GID:-1000}"
     build:
       context: .
       dockerfile: Dockerfile
@@ -41,7 +43,7 @@ services:
       - "19085:8085"
       - "12455:1455"
     volumes:
-      - ./config.yaml:/CLIProxyAPI/config.yaml:ro
+      - ./config.dev.yaml:/CLIProxyAPI/config.yaml:ro
       - /home/bhd/.cli-proxy-api:/home/bhd/.cli-proxy-api
       - ./logs-dev-shared:/CLIProxyAPI/logs
     restart: unless-stopped
