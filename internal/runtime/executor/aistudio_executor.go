@@ -100,7 +100,7 @@ func (e *AIStudioExecutor) Execute(ctx context.Context, auth *cliproxyauth.Auth,
 	reporter.publish(ctx, parseGeminiUsage(wsResp.Body))
 	var param any
 	out := sdktranslator.TranslateNonStream(ctx, body.toFormat, opts.SourceFormat, req.Model, bytes.Clone(opts.OriginalRequest), bytes.Clone(translatedReq), bytes.Clone(wsResp.Body), &param)
-	resp = cliproxyexecutor.Response{Payload: ensureColonSpacedJSON([]byte(out))}
+	resp = cliproxyexecutor.Response{Payload: ensureColonSpacedJSON([]byte(out)), Headers: wsResp.Headers.Clone()}
 	return resp, nil
 }
 
@@ -190,6 +190,15 @@ func (e *AIStudioExecutor) ExecuteStream(ctx context.Context, auth *cliproxyauth
 		defer close(out)
 		var param any
 		metadataLogged := false
+		headersSent := false
+		sendHeaders := func(hdr http.Header) {
+			if headersSent || len(hdr) == 0 {
+				return
+			}
+			headersSent = true
+			out <- cliproxyexecutor.StreamChunk{Headers: hdr.Clone()}
+		}
+		sendHeaders(first.Headers)
 		processEvent := func(event wsrelay.StreamEvent) bool {
 			if event.Err != nil {
 				recordAPIResponseError(ctx, e.cfg, event.Err)
@@ -197,6 +206,7 @@ func (e *AIStudioExecutor) ExecuteStream(ctx context.Context, auth *cliproxyauth
 				out <- cliproxyexecutor.StreamChunk{Err: fmt.Errorf("wsrelay: %v", event.Err)}
 				return false
 			}
+			sendHeaders(event.Headers)
 			switch event.Type {
 			case wsrelay.MessageTypeStreamStart:
 				if !metadataLogged && event.Status > 0 {
@@ -304,7 +314,7 @@ func (e *AIStudioExecutor) CountTokens(ctx context.Context, auth *cliproxyauth.A
 		return cliproxyexecutor.Response{}, fmt.Errorf("wsrelay: totalTokens missing in response")
 	}
 	translated := sdktranslator.TranslateTokenCount(ctx, body.toFormat, opts.SourceFormat, totalTokens, bytes.Clone(resp.Body))
-	return cliproxyexecutor.Response{Payload: []byte(translated)}, nil
+	return cliproxyexecutor.Response{Payload: []byte(translated), Headers: resp.Headers.Clone()}, nil
 }
 
 // Refresh refreshes the authentication credentials (no-op for AI Studio).

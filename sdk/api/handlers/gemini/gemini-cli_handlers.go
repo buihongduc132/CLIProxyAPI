@@ -116,8 +116,11 @@ func (h *GeminiCLIAPIHandler) CLIHandler(c *gin.Context) {
 			_ = resp.Body.Close()
 		}()
 
-		for key, value := range resp.Header {
-			c.Header(key, value[0])
+		for key, values := range resp.Header {
+			c.Writer.Header().Del(key)
+			for _, v := range values {
+				c.Writer.Header().Add(key, v)
+			}
 		}
 		output, err := io.ReadAll(resp.Body)
 		if err != nil {

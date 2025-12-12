@@ -582,6 +582,14 @@ func (s *Server) registerManagementRoutes() {
 		mgmt.GET("/iflow-auth-url", s.mgmt.RequestIFlowToken)
 		mgmt.POST("/iflow-auth-url", s.mgmt.RequestIFlowCookieToken)
 		mgmt.GET("/get-auth-status", s.mgmt.GetAuthStatus)
+
+		// OTLP telemetry management endpoints
+		mgmt.GET("/otel-enabled", s.mgmt.GetOTLPEnabled)
+		mgmt.PUT("/otel-enabled", s.mgmt.SetOTLPEnabled)
+		mgmt.PATCH("/otel-enabled", s.mgmt.SetOTLPEnabled)
+		mgmt.GET("/otel-endpoint", s.mgmt.GetOTLPEndpoint)
+		mgmt.PUT("/otel-endpoint", s.mgmt.SetOTLPEndpoint)
+		mgmt.PATCH("/otel-endpoint", s.mgmt.SetOTLPEndpoint)
 	}
 }
 
@@ -820,6 +828,10 @@ func (s *Server) UpdateClients(cfg *config.Config) {
 		_ = yaml.Unmarshal(s.oldConfigYaml, &oldCfg)
 	}
 
+	if cfg != nil {
+		cfg.NormalizeUsageDatabasePath(s.configFilePath)
+	}
+
 	// Update request logger enabled state if it has changed
 	previousRequestLog := false
 	if oldCfg != nil {
@@ -853,6 +865,14 @@ func (s *Server) UpdateClients(cfg *config.Config) {
 		} else {
 			log.Debugf("usage_statistics_enabled toggled to %t", cfg.UsageStatisticsEnabled)
 		}
+	}
+
+	if err := usage.ConfigureDatabase(usage.DatabaseOptions{
+		Enabled:       cfg.UsageDatabase.Enabled,
+		Path:          cfg.UsageDatabase.Path,
+		RetentionDays: cfg.UsageDatabase.RetentionDays,
+	}); err != nil {
+		log.WithError(err).Warn("failed to configure usage database")
 	}
 
 	if oldCfg == nil || oldCfg.DisableCooling != cfg.DisableCooling {

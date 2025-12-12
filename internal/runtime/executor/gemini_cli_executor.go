@@ -174,7 +174,7 @@ func (e *GeminiCLIExecutor) Execute(ctx context.Context, auth *cliproxyauth.Auth
 			reporter.publish(ctx, parseGeminiCLIUsage(data))
 			var param any
 			out := sdktranslator.TranslateNonStream(respCtx, to, from, attemptModel, bytes.Clone(opts.OriginalRequest), payload, data, &param)
-			resp = cliproxyexecutor.Response{Payload: []byte(out)}
+			resp = cliproxyexecutor.Response{Payload: []byte(out), Headers: httpResp.Header.Clone()}
 			return resp, nil
 		}
 
@@ -183,9 +183,17 @@ func (e *GeminiCLIExecutor) Execute(ctx context.Context, auth *cliproxyauth.Auth
 		log.Debugf("request error, error status: %d, error body: %s", httpResp.StatusCode, summarizeErrorBody(httpResp.Header.Get("Content-Type"), data))
 		if httpResp.StatusCode == 429 {
 			if idx+1 < len(models) {
-				log.Debugf("gemini cli executor: rate limited, retrying with next model: %s", models[idx+1])
+				if authValue != "" {
+					log.Debugf("gemini cli executor: rate limited for account %s, retrying with next model: %s", authValue, models[idx+1])
+				} else {
+					log.Debugf("gemini cli executor: rate limited, retrying with next model: %s", models[idx+1])
+				}
 			} else {
-				log.Debug("gemini cli executor: rate limited, no additional fallback model")
+				if authValue != "" {
+					log.Debugf("gemini cli executor: rate limited for account %s, no additional fallback model", authValue)
+				} else {
+					log.Debug("gemini cli executor: rate limited, no additional fallback model")
+				}
 			}
 			continue
 		}
@@ -304,9 +312,17 @@ func (e *GeminiCLIExecutor) ExecuteStream(ctx context.Context, auth *cliproxyaut
 			log.Debugf("request error, error status: %d, error body: %s", httpResp.StatusCode, summarizeErrorBody(httpResp.Header.Get("Content-Type"), data))
 			if httpResp.StatusCode == 429 {
 				if idx+1 < len(models) {
-					log.Debugf("gemini cli executor: rate limited, retrying with next model: %s", models[idx+1])
+					if authValue != "" {
+						log.Debugf("gemini cli executor: rate limited for account %s, retrying with next model: %s", authValue, models[idx+1])
+					} else {
+						log.Debugf("gemini cli executor: rate limited, retrying with next model: %s", models[idx+1])
+					}
 				} else {
-					log.Debug("gemini cli executor: rate limited, no additional fallback model")
+					if authValue != "" {
+						log.Debugf("gemini cli executor: rate limited for account %s, no additional fallback model", authValue)
+					} else {
+						log.Debug("gemini cli executor: rate limited, no additional fallback model")
+					}
 				}
 				continue
 			}
@@ -323,6 +339,7 @@ func (e *GeminiCLIExecutor) ExecuteStream(ctx context.Context, auth *cliproxyaut
 					log.Errorf("gemini cli executor: close response body error: %v", errClose)
 				}
 			}()
+			out <- cliproxyexecutor.StreamChunk{Headers: resp.Header.Clone()}
 			if opts.Alt == "" {
 				scanner := bufio.NewScanner(resp.Body)
 				scanner.Buffer(nil, streamScannerBuffer)
@@ -471,12 +488,16 @@ func (e *GeminiCLIExecutor) CountTokens(ctx context.Context, auth *cliproxyauth.
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			count := gjson.GetBytes(data, "totalTokens").Int()
 			translated := sdktranslator.TranslateTokenCount(respCtx, to, from, count, data)
-			return cliproxyexecutor.Response{Payload: []byte(translated)}, nil
+			return cliproxyexecutor.Response{Payload: []byte(translated), Headers: resp.Header.Clone()}, nil
 		}
 		lastStatus = resp.StatusCode
 		lastBody = append([]byte(nil), data...)
 		if resp.StatusCode == 429 {
-			log.Debugf("gemini cli executor: rate limited, retrying with next model")
+			if authValue != "" {
+				log.Debugf("gemini cli executor: rate limited for account %s, retrying with next model", authValue)
+			} else {
+				log.Debugf("gemini cli executor: rate limited, retrying with next model")
+			}
 			continue
 		}
 		break

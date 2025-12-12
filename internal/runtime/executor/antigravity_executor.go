@@ -134,7 +134,12 @@ func (e *AntigravityExecutor) Execute(ctx context.Context, auth *cliproxyauth.Au
 			lastBody = append([]byte(nil), bodyBytes...)
 			lastErr = nil
 			if httpResp.StatusCode == http.StatusTooManyRequests && idx+1 < len(baseURLs) {
-				log.Debugf("antigravity executor: rate limited on base url %s, retrying with fallback base url: %s", baseURL, baseURLs[idx+1])
+				_, authValue := auth.AccountInfo()
+				if authValue != "" {
+					log.Debugf("antigravity executor: rate limited on base url %s for account %s, retrying with fallback base url: %s", baseURL, authValue, baseURLs[idx+1])
+				} else {
+					log.Debugf("antigravity executor: rate limited on base url %s, retrying with fallback base url: %s", baseURL, baseURLs[idx+1])
+				}
 				continue
 			}
 			err = statusErr{code: httpResp.StatusCode, msg: string(bodyBytes)}
@@ -144,7 +149,7 @@ func (e *AntigravityExecutor) Execute(ctx context.Context, auth *cliproxyauth.Au
 		reporter.publish(ctx, parseAntigravityUsage(bodyBytes))
 		var param any
 		converted := sdktranslator.TranslateNonStream(ctx, to, from, req.Model, bytes.Clone(opts.OriginalRequest), translated, bodyBytes, &param)
-		resp = cliproxyexecutor.Response{Payload: []byte(converted)}
+		resp = cliproxyexecutor.Response{Payload: []byte(converted), Headers: httpResp.Header.Clone()}
 		reporter.ensurePublished(ctx)
 		return resp, nil
 	}
@@ -233,7 +238,12 @@ func (e *AntigravityExecutor) ExecuteStream(ctx context.Context, auth *cliproxya
 			lastBody = append([]byte(nil), bodyBytes...)
 			lastErr = nil
 			if httpResp.StatusCode == http.StatusTooManyRequests && idx+1 < len(baseURLs) {
-				log.Debugf("antigravity executor: rate limited on base url %s, retrying with fallback base url: %s", baseURL, baseURLs[idx+1])
+				_, authValue := auth.AccountInfo()
+				if authValue != "" {
+					log.Debugf("antigravity executor: rate limited on base url %s for account %s, retrying with fallback base url: %s", baseURL, authValue, baseURLs[idx+1])
+				} else {
+					log.Debugf("antigravity executor: rate limited on base url %s, retrying with fallback base url: %s", baseURL, baseURLs[idx+1])
+				}
 				continue
 			}
 			err = statusErr{code: httpResp.StatusCode, msg: string(bodyBytes)}
@@ -249,6 +259,7 @@ func (e *AntigravityExecutor) ExecuteStream(ctx context.Context, auth *cliproxya
 					log.Errorf("antigravity executor: close response body error: %v", errClose)
 				}
 			}()
+			out <- cliproxyexecutor.StreamChunk{Headers: resp.Header.Clone()}
 			scanner := bufio.NewScanner(resp.Body)
 			scanner.Buffer(nil, streamScannerBuffer)
 			var param any
@@ -366,7 +377,12 @@ func FetchAntigravityModels(ctx context.Context, auth *cliproxyauth.Auth, cfg *c
 		}
 		if httpResp.StatusCode < http.StatusOK || httpResp.StatusCode >= http.StatusMultipleChoices {
 			if httpResp.StatusCode == http.StatusTooManyRequests && idx+1 < len(baseURLs) {
-				log.Debugf("antigravity executor: models request rate limited on base url %s, retrying with fallback base url: %s", baseURL, baseURLs[idx+1])
+				_, authValue := auth.AccountInfo()
+				if authValue != "" {
+					log.Debugf("antigravity executor: rate limited on base url %s for account %s, retrying with fallback base url: %s", baseURL, authValue, baseURLs[idx+1])
+				} else {
+					log.Debugf("antigravity executor: rate limited on base url %s, retrying with fallback base url: %s", baseURL, baseURLs[idx+1])
+				}
 				continue
 			}
 			return nil

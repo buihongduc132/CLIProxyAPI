@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -82,6 +83,12 @@ type Config struct {
 
 	// Payload defines default and override rules for provider payload parameters.
 	Payload PayloadConfig `yaml:"payload" json:"payload"`
+
+	// OTLP defines OpenTelemetry configuration for telemetry export.
+	OTLP OTLPConfig `yaml:"otlp" json:"otlp"`
+
+	// UsageDatabase controls local persistence of request/token statistics.
+	UsageDatabase UsageDatabaseConfig `yaml:"usage-db" json:"usage-db"`
 
 	legacyMigrationPending bool `yaml:"-" json:"-"`
 }
@@ -174,6 +181,28 @@ type PayloadModelRule struct {
 	Name string `yaml:"name" json:"name"`
 	// Protocol restricts the rule to a specific translator format (e.g., "gemini", "responses").
 	Protocol string `yaml:"protocol" json:"protocol"`
+}
+
+// OTLPConfig holds OpenTelemetry configuration settings.
+type OTLPConfig struct {
+	// Enabled toggles OTLP telemetry export.
+	Enabled bool `yaml:"enabled" json:"enabled"`
+	// Endpoint is the OTLP HTTP/JSON endpoint to send telemetry to.
+	Endpoint string `yaml:"endpoint" json:"endpoint"`
+	// TimeoutMs is the timeout in milliseconds for OTLP requests.
+	TimeoutMs int `yaml:"timeout_ms" json:"timeout_ms"`
+	// BatchSize controls how many events are batched before sending.
+	BatchSize int `yaml:"batch_size" json:"batch_size"`
+}
+
+// UsageDatabaseConfig describes the settings for the quota usage store.
+type UsageDatabaseConfig struct {
+	// Enabled toggles persistence of request statistics.
+	Enabled bool `yaml:"enabled" json:"enabled"`
+	// Path is the SQLite file on disk.
+	Path string `yaml:"path" json:"path"`
+	// RetentionDays controls how long to keep historical rows.
+	RetentionDays int `yaml:"retention-days" json:"retention-days"`
 }
 
 // ClaudeKey represents the configuration for a Claude API key,
@@ -327,7 +356,9 @@ func LoadConfigOptional(configFile string, optional bool) (*Config, error) {
 	cfg.LoggingToFile = false
 	cfg.UsageStatisticsEnabled = false
 	cfg.DisableCooling = false
-	cfg.AmpCode.RestrictManagementToLocalhost = false // Default to false: API key auth is sufficient
+	cfg.UsageDatabase.Enabled = true
+	cfg.UsageDatabase.RetentionDays = 14
+	cfg.AmpCode.RestrictManagementToLocalhost = true // Default to secure: only localhost access
 	if err = yaml.Unmarshal(data, &cfg); err != nil {
 		if optional {
 			// In cloud deploy mode, if YAML parsing fails, return empty config instead of error.
@@ -384,6 +415,8 @@ func LoadConfigOptional(configFile string, optional bool) (*Config, error) {
 	// Normalize OAuth provider model exclusion map.
 	cfg.OAuthExcludedModels = NormalizeOAuthExcludedModels(cfg.OAuthExcludedModels)
 
+	cfg.normalizeUsageDatabase(configFile)
+
 	if cfg.legacyMigrationPending {
 		fmt.Println("Detected legacy configuration keys, attempting to persist the normalized config...")
 		if !optional && configFile != "" {
@@ -398,6 +431,41 @@ func LoadConfigOptional(configFile string, optional bool) (*Config, error) {
 
 	// Return the populated configuration struct.
 	return &cfg, nil
+}
+
+func (cfg *Config) normalizeUsageDatabase(configFile string) {
+	if cfg == nil {
+		return
+	}
+	cfg.UsageDatabase.normalize(configFile)
+}
+
+// NormalizeUsageDatabasePath reapplies default path resolution for runtime updates.
+func (cfg *Config) NormalizeUsageDatabasePath(configFile string) {
+	cfg.normalizeUsageDatabase(configFile)
+}
+
+func (c *UsageDatabaseConfig) normalize(configFile string) {
+	if c == nil {
+		return
+	}
+	if c.RetentionDays <= 0 {
+		c.RetentionDays = 14
+	}
+	if configFile == "" {
+		return
+	}
+	baseDir := filepath.Dir(configFile)
+	if baseDir == "" {
+		return
+	}
+	if c.Path == "" {
+		c.Path = filepath.Join(baseDir, "usage", "usage.db")
+		return
+	}
+	if !filepath.IsAbs(c.Path) {
+		c.Path = filepath.Join(baseDir, c.Path)
+	}
 }
 
 // SanitizeOpenAICompatibility removes OpenAI-compatibility provider entries that are

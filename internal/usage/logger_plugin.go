@@ -19,6 +19,9 @@ var statisticsEnabled atomic.Bool
 func init() {
 	statisticsEnabled.Store(true)
 	coreusage.RegisterPlugin(NewLoggerPlugin())
+
+	// Register OTLP plugin for telemetry alignment with dy-noti
+	RegisterOTLPPlugin()
 }
 
 // LoggerPlugin collects in-memory request statistics for usage analysis.

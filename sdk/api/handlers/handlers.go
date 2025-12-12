@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -218,7 +219,9 @@ func (h *BaseAPIHandler) ExecuteWithAuthManager(ctx context.Context, handlerType
 		}
 		return nil, &interfaces.ErrorMessage{StatusCode: status, Error: err, Addon: addon}
 	}
-	return cloneBytes(resp.Payload), nil
+	cloned := cloneBytes(resp.Payload)
+	h.applyUpstreamHeaders(ctx, resp.Headers, len(cloned))
+	return cloned, nil
 }
 
 // ExecuteCountWithAuthManager executes a non-streaming request via the core auth manager.
@@ -260,7 +263,9 @@ func (h *BaseAPIHandler) ExecuteCountWithAuthManager(ctx context.Context, handle
 		}
 		return nil, &interfaces.ErrorMessage{StatusCode: status, Error: err, Addon: addon}
 	}
-	return cloneBytes(resp.Payload), nil
+	cloned := cloneBytes(resp.Payload)
+	h.applyUpstreamHeaders(ctx, resp.Headers, len(cloned))
+	return cloned, nil
 }
 
 // ExecuteStreamWithAuthManager executes a streaming request via the core auth manager.
@@ -313,7 +318,12 @@ func (h *BaseAPIHandler) ExecuteStreamWithAuthManager(ctx context.Context, handl
 	go func() {
 		defer close(dataChan)
 		defer close(errChan)
+		headersApplied := false
 		for chunk := range chunks {
+			if !headersApplied && len(chunk.Headers) > 0 {
+				h.applyUpstreamHeaders(ctx, cloneHeader(chunk.Headers), -1)
+				headersApplied = true
+			}
 			if chunk.Err != nil {
 				status := http.StatusInternalServerError
 				if se, ok := chunk.Err.(interface{ StatusCode() int }); ok && se != nil {
@@ -336,6 +346,22 @@ func (h *BaseAPIHandler) ExecuteStreamWithAuthManager(ctx context.Context, handl
 		}
 	}()
 	return dataChan, errChan
+}
+
+func cloneHeader(src http.Header) http.Header {
+	if len(src) == 0 {
+		return nil
+	}
+	dst := make(http.Header, len(src))
+	for key, values := range src {
+		if len(values) == 0 {
+			continue
+		}
+		cloned := make([]string, len(values))
+		copy(cloned, values)
+		dst[key] = cloned
+	}
+	return dst
 }
 
 func (h *BaseAPIHandler) getRequestDetails(modelName string) (providers []string, normalizedModel string, metadata map[string]any, err *interfaces.ErrorMessage) {
@@ -429,6 +455,41 @@ func cloneMetadata(src map[string]any) map[string]any {
 		dst[k] = v
 	}
 	return dst
+}
+
+func (h *BaseAPIHandler) applyUpstreamHeaders(ctx context.Context, headers http.Header, payloadLen int) {
+	if h == nil || len(headers) == 0 {
+		return
+	}
+	ginCtx, _ := ctx.Value("gin").(*gin.Context)
+	if ginCtx == nil {
+		return
+	}
+	mergeUpstreamHeaders(ginCtx.Writer.Header(), headers, payloadLen)
+}
+
+func mergeUpstreamHeaders(dst http.Header, src http.Header, payloadLen int) {
+	if dst == nil || len(src) == 0 {
+		return
+	}
+	for key, values := range src {
+		if len(values) == 0 {
+			continue
+		}
+		canonical := http.CanonicalHeaderKey(key)
+		if canonical == "Content-Length" {
+			if payloadLen >= 0 {
+				dst.Set(canonical, strconv.Itoa(payloadLen))
+			} else {
+				dst.Del(canonical)
+			}
+			continue
+		}
+		dst.Del(canonical)
+		for _, value := range values {
+			dst.Add(canonical, value)
+		}
+	}
 }
 
 // WriteErrorResponse writes an error message to the response writer using the HTTP status embedded in the message.

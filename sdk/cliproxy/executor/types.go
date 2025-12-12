@@ -43,12 +43,16 @@ type Response struct {
 	Payload []byte
 	// Metadata exposes optional structured data for translators.
 	Metadata map[string]any
+	// Headers contains upstream HTTP headers from the provider response.
+	Headers http.Header
 }
 
 // StreamChunk represents a single streaming payload unit emitted by provider executors.
 type StreamChunk struct {
 	// Payload is the raw provider chunk payload.
 	Payload []byte
+	// Headers contains upstream HTTP headers (sent once at stream start).
+	Headers http.Header
 	// Err reports any terminal error encountered while producing chunks.
 	Err error
 }

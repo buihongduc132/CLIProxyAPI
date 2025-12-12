@@ -404,6 +404,13 @@ func main() {
 	}
 	usage.SetStatisticsEnabled(cfg.UsageStatisticsEnabled)
 	coreauth.SetQuotaCooldownDisabled(cfg.DisableCooling)
+	if err := usage.ConfigureDatabase(usage.DatabaseOptions{
+		Enabled:       cfg.UsageDatabase.Enabled,
+		Path:          cfg.UsageDatabase.Path,
+		RetentionDays: cfg.UsageDatabase.RetentionDays,
+	}); err != nil {
+		log.WithError(err).Warn("failed to initialize usage database")
+	}
 
 	if err = logging.ConfigureLogOutput(cfg.LoggingToFile); err != nil {
 		log.Errorf("failed to configure log output: %v", err)

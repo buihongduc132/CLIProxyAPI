@@ -50,10 +50,20 @@ func GinLogrusLogger() gin.HandlerFunc {
 		method := c.Request.Method
 		errorMessage := c.Errors.ByType(gin.ErrorTypePrivate).String()
 		timestamp := time.Now().Format("2006/01/02 - 15:04:05")
+
+		// Extract account information from context if available
+		var accountInfo string
+		if authValue, exists := c.Get("auth_value"); exists {
+			if authStr, ok := authValue.(string); ok && authStr != "" {
+				accountInfo = fmt.Sprintf(" acct=%s", authStr)
+			}
+		}
+
 		logLine := fmt.Sprintf("[GIN] %s | %3d | %13v | %15s | %-7s \"%s\"", timestamp, statusCode, latency, clientIP, method, path)
 		if errorMessage != "" {
 			logLine = logLine + " | " + errorMessage
 		}
+		logLine = logLine + accountInfo
 
 		switch {
 		case statusCode >= http.StatusInternalServerError:
