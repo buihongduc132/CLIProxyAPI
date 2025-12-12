@@ -50,10 +50,17 @@ func (e *CodexExecutor) Execute(ctx context.Context, auth *cliproxyauth.Auth, re
 	defer reporter.trackFailure(ctx, &err)
 
 	upstreamModel := util.ResolveOriginalModel(req.Model, req.Metadata)
+	if upstreamModel == "" {
+		upstreamModel = req.Model
+	}
 
 	from := opts.SourceFormat
 	to := sdktranslator.FromString("codex")
 	body := sdktranslator.TranslateRequest(from, to, req.Model, bytes.Clone(req.Payload), false)
+	body, aliasModel := e.setReasoningEffortByAlias(req.Model, body)
+	if aliasModel != "" {
+		upstreamModel = aliasModel
+	}
 	body = ApplyReasoningEffortMetadata(body, req.Metadata, req.Model, "reasoning.effort", false)
 	body = NormalizeThinkingConfig(body, upstreamModel, false)
 	if errValidate := ValidateThinkingConfig(body, upstreamModel); errValidate != nil {
@@ -147,11 +154,17 @@ func (e *CodexExecutor) ExecuteStream(ctx context.Context, auth *cliproxyauth.Au
 	defer reporter.trackFailure(ctx, &err)
 
 	upstreamModel := util.ResolveOriginalModel(req.Model, req.Metadata)
+	if upstreamModel == "" {
+		upstreamModel = req.Model
+	}
 
 	from := opts.SourceFormat
 	to := sdktranslator.FromString("codex")
 	body := sdktranslator.TranslateRequest(from, to, req.Model, bytes.Clone(req.Payload), true)
-
+	body, aliasModel := e.setReasoningEffortByAlias(req.Model, body)
+	if aliasModel != "" {
+		upstreamModel = aliasModel
+	}
 	body = ApplyReasoningEffortMetadata(body, req.Metadata, req.Model, "reasoning.effort", false)
 	body = NormalizeThinkingConfig(body, upstreamModel, false)
 	if errValidate := ValidateThinkingConfig(body, upstreamModel); errValidate != nil {
@@ -217,7 +230,7 @@ func (e *CodexExecutor) ExecuteStream(ctx context.Context, auth *cliproxyauth.Au
 		}()
 		out <- cliproxyexecutor.StreamChunk{Headers: httpResp.Header.Clone()}
 		scanner := bufio.NewScanner(httpResp.Body)
-		scanner.Buffer(nil, 52_428_800) // 50MB
+		scanner.Buffer(nil, 20_971_520)
 		var param any
 		for scanner.Scan() {
 			line := scanner.Bytes()
@@ -248,6 +261,9 @@ func (e *CodexExecutor) ExecuteStream(ctx context.Context, auth *cliproxyauth.Au
 
 func (e *CodexExecutor) CountTokens(ctx context.Context, auth *cliproxyauth.Auth, req cliproxyexecutor.Request, opts cliproxyexecutor.Options) (cliproxyexecutor.Response, error) {
 	upstreamModel := util.ResolveOriginalModel(req.Model, req.Metadata)
+	if upstreamModel == "" {
+		upstreamModel = req.Model
+	}
 
 	from := opts.SourceFormat
 	to := sdktranslator.FromString("codex")
@@ -255,6 +271,11 @@ func (e *CodexExecutor) CountTokens(ctx context.Context, auth *cliproxyauth.Auth
 
 	modelForCounting := req.Model
 
+	body, aliasModel := e.setReasoningEffortByAlias(req.Model, body)
+	if aliasModel != "" {
+		upstreamModel = aliasModel
+		modelForCounting = aliasModel
+	}
 	body = ApplyReasoningEffortMetadata(body, req.Metadata, req.Model, "reasoning.effort", false)
 	body, _ = sjson.SetBytes(body, "model", upstreamModel)
 	body, _ = sjson.DeleteBytes(body, "previous_response_id")
@@ -273,6 +294,137 @@ func (e *CodexExecutor) CountTokens(ctx context.Context, auth *cliproxyauth.Auth
 	usageJSON := fmt.Sprintf(`{"response":{"usage":{"input_tokens":%d,"output_tokens":0,"total_tokens":%d}}}`, count, count)
 	translated := sdktranslator.TranslateTokenCount(ctx, to, from, count, []byte(usageJSON))
 	return cliproxyexecutor.Response{Payload: []byte(translated)}, nil
+}
+
+func (e *CodexExecutor) setReasoningEffortByAlias(modelName string, payload []byte) ([]byte, string) {
+	canonical := ""
+	if util.InArray([]string{"gpt-5", "gpt-5-minimal", "gpt-5-low", "gpt-5-medium", "gpt-5-high"}, modelName) {
+		payload, _ = sjson.SetBytes(payload, "model", "gpt-5")
+		canonical = "gpt-5"
+		switch modelName {
+		case "gpt-5-minimal":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "minimal")
+		case "gpt-5-low":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "low")
+		case "gpt-5-medium":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "medium")
+		case "gpt-5-high":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "high")
+		}
+	} else if util.InArray([]string{"gpt-5-codex", "gpt-5-codex-low", "gpt-5-codex-medium", "gpt-5-codex-high"}, modelName) {
+		payload, _ = sjson.SetBytes(payload, "model", "gpt-5-codex")
+		canonical = "gpt-5-codex"
+		switch modelName {
+		case "gpt-5-codex-low":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "low")
+		case "gpt-5-codex-medium":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "medium")
+		case "gpt-5-codex-high":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "high")
+		}
+	} else if util.InArray([]string{"gpt-5-codex-mini", "gpt-5-codex-mini-medium", "gpt-5-codex-mini-high"}, modelName) {
+		payload, _ = sjson.SetBytes(payload, "model", "gpt-5-codex-mini")
+		canonical = "gpt-5-codex-mini"
+		switch modelName {
+		case "gpt-5-codex-mini-medium":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "medium")
+		case "gpt-5-codex-mini-high":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "high")
+		}
+	} else if util.InArray([]string{"gpt-5.2", "gpt-5.2-none", "gpt-5.2-low", "gpt-5.2-medium", "gpt-5.2-high"}, modelName) {
+		payload, _ = sjson.SetBytes(payload, "model", "gpt-5.1")
+		canonical = "gpt-5.1"
+		switch modelName {
+		case "gpt-5.2-none":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "none")
+		case "gpt-5.2-low":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "low")
+		case "gpt-5.2-medium":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "medium")
+		case "gpt-5.2-high":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "high")
+		}
+	} else if util.InArray([]string{"gpt-5.1", "gpt-5.1-none", "gpt-5.1-low", "gpt-5.1-medium", "gpt-5.1-high"}, modelName) {
+		payload, _ = sjson.SetBytes(payload, "model", "gpt-5.1")
+		canonical = "gpt-5.1"
+		switch modelName {
+		case "gpt-5.1-none":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "none")
+		case "gpt-5.1-low":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "low")
+		case "gpt-5.1-medium":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "medium")
+		case "gpt-5.1-high":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "high")
+		}
+	} else if util.InArray([]string{"gpt-5.2-codex", "gpt-5.2-codex-low", "gpt-5.2-codex-medium", "gpt-5.2-codex-high"}, modelName) {
+		payload, _ = sjson.SetBytes(payload, "model", "gpt-5.1-codex")
+		canonical = "gpt-5.1-codex"
+		switch modelName {
+		case "gpt-5.2-codex-low":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "low")
+		case "gpt-5.2-codex-medium":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "medium")
+		case "gpt-5.2-codex-high":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "high")
+		}
+	} else if util.InArray([]string{"gpt-5.1-codex", "gpt-5.1-codex-low", "gpt-5.1-codex-medium", "gpt-5.1-codex-high"}, modelName) {
+		payload, _ = sjson.SetBytes(payload, "model", "gpt-5.1-codex")
+		canonical = "gpt-5.1-codex"
+		switch modelName {
+		case "gpt-5.1-codex-low":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "low")
+		case "gpt-5.1-codex-medium":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "medium")
+		case "gpt-5.1-codex-high":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "high")
+		}
+	} else if util.InArray([]string{"gpt-5.2-codex-mini", "gpt-5.2-codex-mini-medium", "gpt-5.2-codex-mini-high"}, modelName) {
+		payload, _ = sjson.SetBytes(payload, "model", "gpt-5.1-codex-mini")
+		canonical = "gpt-5.1-codex-mini"
+		switch modelName {
+		case "gpt-5.2-codex-mini-medium":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "medium")
+		case "gpt-5.2-codex-mini-high":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "high")
+		}
+	} else if util.InArray([]string{"gpt-5.1-codex-mini", "gpt-5.1-codex-mini-medium", "gpt-5.1-codex-mini-high"}, modelName) {
+		payload, _ = sjson.SetBytes(payload, "model", "gpt-5.1-codex-mini")
+		canonical = "gpt-5.1-codex-mini"
+		switch modelName {
+		case "gpt-5.1-codex-mini-medium":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "medium")
+		case "gpt-5.1-codex-mini-high":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "high")
+		}
+	} else if util.InArray([]string{"gpt-5.2-codex-max", "gpt-5.2-codex-max-low", "gpt-5.2-codex-max-medium", "gpt-5.2-codex-max-high", "gpt-5.2-codex-max-xhigh"}, modelName) {
+		payload, _ = sjson.SetBytes(payload, "model", "gpt-5.1-codex-max")
+		canonical = "gpt-5.1-codex-max"
+		switch modelName {
+		case "gpt-5.2-codex-max-low":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "low")
+		case "gpt-5.2-codex-max-medium":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "medium")
+		case "gpt-5.2-codex-max-high":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "high")
+		case "gpt-5.2-codex-max-xhigh":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "xhigh")
+		}
+	} else if util.InArray([]string{"gpt-5.1-codex-max", "gpt-5.1-codex-max-low", "gpt-5.1-codex-max-medium", "gpt-5.1-codex-max-high", "gpt-5.1-codex-max-xhigh"}, modelName) {
+		payload, _ = sjson.SetBytes(payload, "model", "gpt-5.1-codex-max")
+		canonical = "gpt-5.1-codex-max"
+		switch modelName {
+		case "gpt-5.1-codex-max-low":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "low")
+		case "gpt-5.1-codex-max-medium":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "medium")
+		case "gpt-5.1-codex-max-high":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "high")
+		case "gpt-5.1-codex-max-xhigh":
+			payload, _ = sjson.SetBytes(payload, "reasoning.effort", "xhigh")
+		}
+	}
+	return payload, canonical
 }
 
 func tokenizerForCodexModel(model string) (tokenizer.Codec, error) {

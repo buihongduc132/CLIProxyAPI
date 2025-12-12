@@ -1,0 +1,13 @@
+{
+  "pid": 445584,
+  "projectId": "827bd6e356300b9525baa028f4251a933274ceb4",
+  "status": "starting",
+  "startedAt": "2025-12-13T13:29:18.511Z",
+  "updatedAt": "2025-12-13T13:29:18.511Z",
+  "dbPath": "/home/bhd/Documents/Projects/bhd/wot-proxy/vendor/CLIProxyAPI/.opencode/ctags/827bd6e356300b9525baa028f4251a933274ceb4.db",
+  "indexing": {
+    "totalFiles": 0,
+    "processedFiles": 0,
+    "complete": false
+  }
+}
