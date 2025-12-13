@@ -42,7 +42,8 @@ func (h *GeminiAPIHandler) HandlerType() string {
 func (h *GeminiAPIHandler) Models() []map[string]any {
 	// Get dynamic models from the global registry
 	modelRegistry := registry.GetGlobalRegistry()
-	return modelRegistry.GetAvailableModels("gemini")
+	includeSuspended := h.Cfg != nil && h.Cfg.ModelsList.IncludeSuspended
+	return modelRegistry.GetModelsForListing("gemini", includeSuspended)
 }
 
 // GeminiModels handles the Gemini models listing endpoint.

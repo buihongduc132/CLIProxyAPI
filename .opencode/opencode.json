@@ -1,0 +1,51 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "AGENTS.md",
+    "flow/ref/opencode-openai-codex-auth/README.md"
+  ],
+  "formatter": {
+    "go": {
+      "command": ["gofmt", "-w", "$FILE"],
+      "extensions": [".go"]
+    },
+    "structured-prettier": {
+      "command": ["npx", "--yes", "prettier", "--write", "$FILE"],
+      "extensions": [".md", ".json", ".yaml", ".yml", ".mdx"]
+    },
+    "text-prettier": {
+      "command": ["npx", "--yes", "prettier", "--parser", "markdown", "--write", "$FILE"],
+      "extensions": [".txt"]
+    },
+    "shell-shfmt": {
+      "command": ["shfmt", "-w", "$FILE"],
+      "extensions": [".sh", ".bash"]
+    },
+    "powershell": {
+      "command": ["pwsh", "-NoProfile", "-File", ".opencode/scripts/format-powershell.ps1", "$FILE"],
+      "extensions": [".ps1", ".psm1"]
+    }
+  },
+  "lsp": {
+    "gopls": {
+      "command": ["gopls", "serve"],
+      "extensions": [".go"]
+    },
+    "yaml-language-server": {
+      "command": ["npx", "--yes", "yaml-language-server", "--stdio"],
+      "extensions": [".yaml", ".yml"]
+    },
+    "json-language-server": {
+      "command": ["npx", "--yes", "vscode-json-languageserver", "--stdio"],
+      "extensions": [".json", ".jsonc"]
+    },
+    "bash-language-server": {
+      "command": ["npx", "--yes", "bash-language-server", "start"],
+      "extensions": [".sh", ".bash"]
+    },
+    "powershell-lsp": {
+      "command": ["pwsh", "-NoProfile", "-File", ".opencode/scripts/powershell-lsp.ps1"],
+      "extensions": [".ps1", ".psm1"]
+    }
+  }
+}

@@ -33,6 +33,9 @@ func TestRegisterManagementRoutes(t *testing.T) {
 
 	base := &handlers.BaseAPIHandler{}
 	m.registerManagementRoutes(r, base)
+	srv := httptest.NewServer(r)
+	defer srv.Close()
+	client := srv.Client()
 
 	managementPaths := []struct {
 		path   string
@@ -63,11 +66,17 @@ func TestRegisterManagementRoutes(t *testing.T) {
 	for _, path := range managementPaths {
 		t.Run(path.path, func(t *testing.T) {
 			proxyCalled = false
-			req := httptest.NewRequest(path.method, path.path, nil)
-			w := httptest.NewRecorder()
-			r.ServeHTTP(w, req)
+			req, err := http.NewRequest(path.method, srv.URL+path.path, nil)
+			if err != nil {
+				t.Fatalf("request build failed: %v", err)
+			}
+			resp, err := client.Do(req)
+			if err != nil {
+				t.Fatalf("request failed: %v", err)
+			}
+			_ = resp.Body.Close()
 
-			if w.Code == http.StatusNotFound {
+			if resp.StatusCode == http.StatusNotFound {
 				t.Fatalf("route %s not registered", path.path)
 			}
 			if !proxyCalled {

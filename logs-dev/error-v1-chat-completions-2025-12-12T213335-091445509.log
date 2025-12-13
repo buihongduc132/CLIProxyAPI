@@ -1,0 +1,24 @@
+=== REQUEST INFO ===
+Version: v6.6.7
+URL: /v1/chat/completions
+Method: POST
+Timestamp: 2025-12-12T21:33:35.091451689+08:00
+
+=== HEADERS ===
+User-Agent: curl/8.17.0
+Accept: */*
+Content-Type: application/json
+Authorization: Bearer dev-...-key
+Content-Length: 65
+
+=== REQUEST BODY ===
+{"model":"gpt-5.1","messages":[{"role":"user","content":"ping"}]}
+
+=== RESPONSE ===
+Status: 400
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Headers: *
+Content-Type: application/json
+
+unknown provider for model gpt-5.1

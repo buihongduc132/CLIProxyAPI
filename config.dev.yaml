@@ -1,21 +1,75 @@
 port: 18317
 
+tls:
+  enable: false
+  cert: ""
+  key: ""
+
 remote-management:
   allow-remote: false
-  secret-key: ""
+  secret-key: "$2a$12$5gDe6N4Y4HsfN5uawuO/7eS.FvP2hTC6KS0OUIrdiGouVpqiWRZx."
   disable-control-panel: true
 
-auth-dir: "~/.cli-proxy-api-dev"
+auth-dir: "/home/bhd/.cli-proxy-api"
 
 api-keys:
-  - "dev-test-key"
+  - "local-cli-proxy-key"
 
-debug: true
+models-list:
+  include-suspended: true
+
+debug: false
 logging-to-file: false
-usage-statistics-enabled: false
-request-retry: 2
-max-retry-interval: 10
+usage-statistics-enabled: true
+disable-cooling: false
+request-retry: 3
+max-retry-interval: 30
+request-log: true
+
+usage-db:
+  enabled: true
+  path: "usage/usage.db"
+  retention-days: 30
+
 quota-exceeded:
-  switch-project: false
-  switch-preview-model: false
+  switch-project: true
+  switch-preview-model: true
+
 ws-auth: false
+
+proxy-url: ""
+
+oauth-excluded-models:
+  qwen:
+    - "vision-model"
+
+payload:
+  default:
+    - models:
+        - name: "qwen3-*"
+          protocol: "openai"
+      params:
+        "stream_options.include_usage": true
+        "metadata.wot_provider": "cliproxy-qwen"
+    - models:
+        - name: "gemini-*"
+          protocol: "openai"
+      params:
+        "metadata.wot_provider": "cliproxy-gemini"
+  override:
+    - models:
+        - name: "qwen3-coder-plus"
+          protocol: "openai"
+      params:
+        "temperature": 0.2
+        "top_p": 0.9
+    - models:
+        - name: "gemini-pro"
+          protocol: "openai"
+      params:
+        "metadata.wot_provider": "cliproxy-gemini"
+
+ampcode:
+  upstream-url: "https://ampcode.com"
+  restrict-management-to-localhost: true
+  model-mappings: []

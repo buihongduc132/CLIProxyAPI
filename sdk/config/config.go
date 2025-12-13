@@ -15,8 +15,19 @@ type SDKConfig struct {
 	// APIKeys is a list of keys for authenticating clients to this proxy server.
 	APIKeys []string `yaml:"api-keys" json:"api-keys"`
 
+	// ModelsList controls how /v1/models is derived from the model registry.
+	ModelsList ModelsListConfig `yaml:"models-list" json:"models-list"`
+
 	// Access holds request authentication provider configuration.
 	Access AccessConfig `yaml:"auth,omitempty" json:"auth,omitempty"`
+}
+
+// ModelsListConfig configures model listing behavior.
+type ModelsListConfig struct {
+	// IncludeSuspended returns models even when all clients are suspended.
+	// This keeps /v1/models aligned with the configured stack "catalog" even
+	// when credentials are temporarily blocked.
+	IncludeSuspended bool `yaml:"include-suspended" json:"include-suspended"`
 }
 
 // AccessConfig groups request authentication providers.

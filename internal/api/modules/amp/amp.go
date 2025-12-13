@@ -213,6 +213,16 @@ func (m *AmpModule) OnConfigUpdated(cfg *config.Config) error {
 	}
 
 	if m.enabled {
+		// Any upstream URL change (including first observation) must invalidate cached secret lookups
+		// since secrets are keyed by upstream URL.
+		if newUpstreamURL != "" && (oldSettings == nil || newUpstreamURL != oldUpstreamURL) {
+			if m.secretSource != nil {
+				if ms, ok := m.secretSource.(*MultiSourceSecret); ok {
+					ms.InvalidateCache()
+				}
+			}
+		}
+
 		// Check upstream URL change - now supports hot-reload
 		if newUpstreamURL == "" && oldUpstreamURL != "" {
 			m.setProxy(nil)

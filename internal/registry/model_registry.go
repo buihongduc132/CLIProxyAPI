@@ -625,6 +625,32 @@ func (r *ModelRegistry) GetAvailableModels(handlerType string) []map[string]any 
 	return models
 }
 
+// GetModelsForListing returns models for /v1/models.
+//
+// When includeSuspended is true, models are returned as long as at least one
+// client is registered for the model, even if all clients are currently
+// suspended for non-quota reasons (e.g., credentials blocked).
+func (r *ModelRegistry) GetModelsForListing(handlerType string, includeSuspended bool) []map[string]any {
+	if !includeSuspended {
+		return r.GetAvailableModels(handlerType)
+	}
+
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	models := make([]map[string]any, 0)
+	for _, registration := range r.models {
+		if registration == nil || registration.Count <= 0 {
+			continue
+		}
+		model := r.convertModelToMap(registration.Info, handlerType)
+		if model != nil {
+			models = append(models, model)
+		}
+	}
+	return models
+}
+
 // GetModelCount returns the number of available clients for a specific model
 // Parameters:
 //   - modelID: The model ID to check

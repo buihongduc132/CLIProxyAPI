@@ -51,7 +51,8 @@ func (h *OpenAIAPIHandler) HandlerType() string {
 func (h *OpenAIAPIHandler) Models() []map[string]any {
 	// Get dynamic models from the global registry
 	modelRegistry := registry.GetGlobalRegistry()
-	return modelRegistry.GetAvailableModels("openai")
+	includeSuspended := h.Cfg != nil && h.Cfg.ModelsList.IncludeSuspended
+	return modelRegistry.GetModelsForListing("openai", includeSuspended)
 }
 
 // OpenAIModels handles the /v1/models endpoint.
