@@ -148,6 +148,17 @@ func GetGeminiModels() []*ModelInfo {
 			Thinking:                   &ThinkingSupport{Min: 0, Max: 24576, ZeroAllowed: true, DynamicAllowed: true},
 		},
 		{
+			ID:                  "gemini-claude-opus-4-5",
+			Object:              "model",
+			Created:             1761955200,
+			OwnedBy:             "anthropic",
+			Type:                "claude",
+			DisplayName:         "Claude 4.5 Opus (Antigravity)",
+			ContextLength:       200000,
+			MaxCompletionTokens: 64000,
+			Thinking:            &ThinkingSupport{Min: 1024, Max: 100000, ZeroAllowed: false, DynamicAllowed: true},
+		},
+		{
 			ID:                         "gemini-3-pro-preview",
 			Object:                     "model",
 			Created:                    1737158400,
@@ -693,7 +704,9 @@ func GetAntigravityModelConfig() map[string]*AntigravityModelConfig {
 		"gemini-2.5-computer-use-preview-10-2025": {Name: "models/gemini-2.5-computer-use-preview-10-2025"},
 		"gemini-3-pro-preview":                    {Thinking: &ThinkingSupport{Min: 128, Max: 32768, ZeroAllowed: false, DynamicAllowed: true}, Name: "models/gemini-3-pro-preview"},
 		"gemini-3-pro-image-preview":              {Thinking: &ThinkingSupport{Min: 128, Max: 32768, ZeroAllowed: false, DynamicAllowed: true}, Name: "models/gemini-3-pro-image-preview"},
+		"gemini-claude-sonnet-4-5":                {Thinking: &ThinkingSupport{Min: 1024, Max: 200000, ZeroAllowed: false, DynamicAllowed: true}, MaxCompletionTokens: 64000},
 		"gemini-claude-sonnet-4-5-thinking":       {Thinking: &ThinkingSupport{Min: 1024, Max: 200000, ZeroAllowed: false, DynamicAllowed: true}, MaxCompletionTokens: 64000},
+		"gemini-claude-opus-4-5":                  {Thinking: &ThinkingSupport{Min: 1024, Max: 200000, ZeroAllowed: false, DynamicAllowed: true}, MaxCompletionTokens: 64000},
 		"gemini-claude-opus-4-5-thinking":         {Thinking: &ThinkingSupport{Min: 1024, Max: 200000, ZeroAllowed: false, DynamicAllowed: true}, MaxCompletionTokens: 64000},
 	}
 }
