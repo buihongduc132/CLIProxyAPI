@@ -32,7 +32,10 @@ func TestRegisterManagementRoutes(t *testing.T) {
 	m.setProxy(proxy)
 
 	base := &handlers.BaseAPIHandler{}
-	m.registerManagementRoutes(r, base)
+	authMiddleware := func(c *gin.Context) {
+		c.Next()
+	}
+	m.registerManagementRoutes(r, base, authMiddleware)
 	srv := httptest.NewServer(r)
 	defer srv.Close()
 	client := srv.Client()
