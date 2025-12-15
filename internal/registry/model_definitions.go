@@ -480,7 +480,7 @@ func GetAIStudioModels() []*ModelInfo {
 
 // GetOpenAIModels returns the standard OpenAI model definitions
 func GetOpenAIModels() []*ModelInfo {
-	return []*ModelInfo{
+	models := []*ModelInfo{
 		{
 			ID:                  "gpt-5",
 			Object:              "model",
@@ -594,6 +594,82 @@ func GetOpenAIModels() []*ModelInfo {
 			Thinking:            &ThinkingSupport{Levels: []string{"none", "low", "medium", "high", "xhigh"}},
 		},
 	}
+
+	// helper to clone a base model with a new ID and optional display name
+	clone := func(base *ModelInfo, id, displayName string) *ModelInfo {
+		if base == nil {
+			return nil
+		}
+		c := *base
+		c.ID = id
+		if displayName != "" {
+			c.DisplayName = displayName
+		} else {
+			c.DisplayName = id
+		}
+		return &c
+	}
+
+	find := func(id string) *ModelInfo {
+		for _, m := range models {
+			if m != nil && m.ID == id {
+				return m
+			}
+		}
+		return nil
+	}
+
+	baseGPT51 := find("gpt-5.1")
+	baseGPT51Codex := find("gpt-5.1-codex")
+	baseGPT51CodexMini := find("gpt-5.1-codex-mini")
+	baseGPT51CodexMax := find("gpt-5.1-codex-max")
+	baseGPT52 := find("gpt-5.2")
+
+	// GPT 5.1 reasoning-level aliases
+	if baseGPT51 != nil {
+		models = append(models,
+			clone(baseGPT51, "gpt-5.1-low", "GPT 5.1 Low"),
+			clone(baseGPT51, "gpt-5.1-medium", "GPT 5.1 Medium"),
+			clone(baseGPT51, "gpt-5.1-high", "GPT 5.1 High"),
+		)
+	}
+
+	// GPT 5.1 Codex aliases (core + mini)
+	if baseGPT51Codex != nil {
+		models = append(models,
+			clone(baseGPT51Codex, "gpt-5.1-codex-low", "GPT 5.1 Codex Low"),
+			clone(baseGPT51Codex, "gpt-5.1-codex-medium", "GPT 5.1 Codex Medium"),
+			clone(baseGPT51Codex, "gpt-5.1-codex-high", "GPT 5.1 Codex High"),
+		)
+	}
+	if baseGPT51CodexMini != nil {
+		models = append(models,
+			clone(baseGPT51CodexMini, "gpt-5.1-codex-mini-medium", "GPT 5.1 Codex Mini Medium"),
+			clone(baseGPT51CodexMini, "gpt-5.1-codex-mini-high", "GPT 5.1 Codex Mini High"),
+		)
+	}
+
+	// GPT 5.1 Codex Max reasoning-level aliases
+	if baseGPT51CodexMax != nil {
+		models = append(models,
+			clone(baseGPT51CodexMax, "gpt-5.1-codex-max-low", "GPT 5.1 Codex Max Low"),
+			clone(baseGPT51CodexMax, "gpt-5.1-codex-max-medium", "GPT 5.1 Codex Max Medium"),
+			clone(baseGPT51CodexMax, "gpt-5.1-codex-max-high", "GPT 5.1 Codex Max High"),
+			clone(baseGPT51CodexMax, "gpt-5.1-codex-max-xhigh", "GPT 5.1 Codex Max Extra High"),
+		)
+	}
+
+	// GPT 5.2 reasoning-level aliases
+	if baseGPT52 != nil {
+		models = append(models,
+			clone(baseGPT52, "gpt-5.2-low", "GPT 5.2 Low"),
+			clone(baseGPT52, "gpt-5.2-medium", "GPT 5.2 Medium"),
+			clone(baseGPT52, "gpt-5.2-high", "GPT 5.2 High"),
+			clone(baseGPT52, "gpt-5.2-xhigh", "GPT 5.2 Extra High"),
+		)
+	}
+
+	return models
 }
 
 // GetQwenModels returns the standard Qwen model definitions
