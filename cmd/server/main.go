@@ -412,7 +412,7 @@ func main() {
 		log.WithError(err).Warn("failed to initialize usage database")
 	}
 
-	if err = logging.ConfigureLogOutput(cfg.LoggingToFile); err != nil {
+	if err = logging.ConfigureLogOutput(cfg.LoggingToFile, cfg.LogsMaxTotalSizeMB); err != nil {
 		log.Errorf("failed to configure log output: %v", err)
 		return
 	}
