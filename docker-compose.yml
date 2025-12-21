@@ -2,6 +2,7 @@ services:
   cli-proxy-api:
     image: ${CLI_PROXY_IMAGE:-eceasy/cli-proxy-api:latest}
     pull_policy: always
+    user: "${UID:-1000}:${GID:-1000}"
     build:
       context: .
       dockerfile: Dockerfile
