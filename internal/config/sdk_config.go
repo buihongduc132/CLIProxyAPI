@@ -22,6 +22,14 @@ type SDKConfig struct {
 
 	// Access holds request authentication provider configuration.
 	Access AccessConfig `yaml:"auth,omitempty" json:"auth,omitempty"`
+
+	// ModelsList controls list filtering behavior for /v1/models.
+	ModelsList ModelsList `yaml:"models-list,omitempty" json:"models-list,omitempty"`
+}
+
+// ModelsList configures model list filtering.
+type ModelsList struct {
+	IncludeSuspended bool `yaml:"include-suspended" json:"include-suspended"`
 }
 
 // AccessConfig groups request authentication providers.
